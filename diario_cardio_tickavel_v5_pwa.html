@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d6efd">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Painel Diário — Coração & Refluxo (Tickável) — v5 (PWA)</title>
+<style>
+  :root{
+    --ok:#1a7f37;
+    --warn:#e6a700;
+    --bad:#c62828;
+    --ink:#111;
+    --muted:#555;
+    --bg:#f7f7fb;
+    --card:#ffffff;
+    --accent:#0d6efd;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,'Helvetica Neue',Arial;
+    background:var(--bg);
+    color:var(--ink);
+    line-height:1.45;
+    font-size:16px;
+  }
+  header{
+    position:sticky; top:0; z-index:10;
+    padding:12px 16px;
+    background:linear-gradient(90deg,#0d6efd, #5aa3ff);
+    color:white;
+  }
+  header h1{margin:0 0 4px;font-size:20px}
+  header p{margin:0;font-size:14px;opacity:.95}
+  .wrap{max-width:980px;margin:12px auto;padding:0 10px 90px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+  .card{
+    background:var(--card);
+    border:1px solid #e6e6ee;
+    border-radius:12px;
+    padding:12px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
+    break-inside: avoid;
+  }
+  .card h2{margin:0 0 8px;font-size:18px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .badge{font-size:12px;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#2b4eff;border:1px solid #dfe6ff}
+  .muted{color:var(--muted);font-size:14px}
+  label{display:flex;align-items:center;gap:8px;margin:8px 0}
+  input[type="number"],
+  input[type="time"],
+  input[type="date"],
+  input[type="text"]{
+    width:100%;max-width:160px;padding:10px;border:1px solid #d7d7e2;border-radius:10px;font-size:16px
+  }
+  textarea{width:100%;min-height:96px;padding:10px;border:1px solid #d7d7e2;border-radius:10px;resize:vertical;font-size:16px}
+  button{
+    appearance:none;border:0;background:var(--accent);color:white;border-radius:12px;
+    padding:12px 16px;font-size:16px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08)
+  }
+  button.ghost{background:#eef2ff;color:#2b4eff}
+  button.danger{background:var(--bad)}
+  .bar{height:14px;border-radius:999px;background:#eee;overflow:hidden}
+  .bar > span{display:block;height:100%;background:var(--accent);width:0%}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d7d7e2;padding:8px 10px;border-radius:999px;background:#fff}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid #ececf2;border-radius:10px;background:#fff}
+  .table{width:700px;border-collapse:collapse;table-layout:fixed}
+  .table th,.table td{border:1px solid #ececf2;padding:8px;text-align:center;font-size:14px}
+  .table th{background:#fafaff;position:sticky;top:0}
+  .status{font-weight:600}
+  .ok{color:var(--ok)}
+  .warn{color:var(--warn)}
+  .bad{color:var(--bad)}
+  .footer{margin-top:12px;font-size:12.5px;color:#666}
+  .redflag{border:1px dashed var(--bad);background:#fff5f5;color:#8c1d1d;padding:10px;border-radius:10px}
+  .flex{display:flex;gap:10px;flex-wrap:wrap}
+  .spacer{height:8px}
+  .chartBox{width:100%;height:220px;background:#fff;border:1px solid #ececf2;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative}
+  canvas{width:100%;height:100%}
+  #aguaTicks label{background:#f3f6ff;border:1px solid #dfe6ff;border-radius:10px;padding:10px 12px;cursor:pointer;user-select:none}
+  #aguaTicks input{width:18px;height:18px}
+  .actions{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid #e6e6ee;padding:10px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+  .actions button{flex:1;min-width:120px}
+  @page { size: A4 portrait; margin: 12mm; }
+  @media print{
+    header{position:static;background:#fff;color:#000;border-bottom:1px solid #ddd}
+    .wrap{padding-bottom:0}
+    .grid{display:block}
+    .card{page-break-inside:avoid;margin-bottom:10px;border-color:#ddd;box-shadow:none}
+    .actions{display:none}
+    body{background:#fff}
+    .table{width:100%}
+    .table th,.table td{font-size:12px;padding:4px}
+  }
+  @media (max-width: 480px){
+    header h1{font-size:18px}
+    .pill{width:100%}
+    .grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Painel Diário — Coração &amp; Refluxo (Tickável) <small>v5 (PWA)</small></h1>
+  <p>Instalável (Add to Home), offline e com salvamento local.</p>
+</header>
+
+<div class="wrap">
+  <div class="row" style="margin-bottom:8px">
+    <div class="pill"><strong>Data:</strong> <input id="date" type="date"></div>
+    <div class="pill"><strong>Nome:</strong> <input id="nome" type="text" placeholder="Seu nome" style="border:0;outline:0"></div>
+    <div class="pill"><strong>Peso (kg):</strong> <input id="peso" type="number" step="0.1" placeholder="Ex: 103.6"></div>
+    <span class="badge" id="saveStatus">Não salvo</span>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Medicamentos do dia</h2>
+      <p class="muted">Marque quando tomar e registre o horário.</p>
+      <label><input type="checkbox" id="omep_chk"> Tomei <strong>Omeprazol</strong> (jejum, 30 min antes do café)</label>
+      <div class="row"><label class="muted">Horário: <input id="omep_time" type="time"></label></div>
+      <div class="spacer"></div>
+      <label><input type="checkbox" id="escit_chk"> Tomei <strong>Escitalopram</strong></label>
+      <div class="row"><label class="muted">Horário: <input id="escit_time" type="time"></label></div>
+      <small class="muted">*Não interrompa medicação sem orientação médica.</small>
+    </section>
+
+    <section class="card">
+      <h2>Hidratação</h2>
+      <p class="muted">Meta sugerida: <strong>2,5–3,0 L/dia</strong>. Marque copos de 250 mL.</p>
+      <div id="aguaTicks" class="flex"></div>
+      <div class="spacer"></div>
+      <div class="bar"><span id="aguaBar"></span></div>
+      <p class="muted"><strong id="aguaLitros">0.00</strong> L consumidos</p>
+    </section>
+
+    <section class="card">
+      <h2>Pressão arterial &amp; Pulso</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th style="width:20%">Período</th><th style="width:20%">Sistólica<br>(mmHg)</th><th style="width:20%">Diastólica<br>(mmHg)</th><th style="width:20%">Pulso<br>(bpm)</th><th>Classificação</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Manhã</td>
+              <td><input type="number" id="bp_m_sis" min="60" max="250"></td>
+              <td><input type="number" id="bp_m_dia" min="40" max="150"></td>
+              <td><input type="number" id="bp_m_pul" min="20" max="200"></td>
+              <td class="status" id="bp_m_status">—</td>
+            </tr>
+            <tr>
+              <td>Tarde</td>
+              <td><input type="number" id="bp_t_sis" min="60" max="250"></td>
+              <td><input type="number" id="bp_t_dia" min="40" max="150"></td>
+              <td><input type="number" id="bp_t_pul" min="20" max="200"></td>
+              <td class="status" id="bp_t_status">—</td>
+            </tr>
+            <tr>
+              <td>Noite</td>
+              <td><input type="number" id="bp_n_sis" min="60" max="250"></td>
+              <td><input type="number" id="bp_n_dia" min="40" max="150"></td>
+              <td><input type="number" id="bp_n_pul" min="20" max="200"></td>
+              <td class="status" id="bp_n_status">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:12px">Regras: <span class="ok">OK</span> &lt;130/85 | <span class="warn">Elevada</span> 130–139 ou 85–89 | <span class="bad">Alta</span> ≥140 ou ≥90.</p>
+      <div class="redflag" id="flagBox" style="display:none">
+        <strong>⚠️ Sinais de alerta:</strong> dor forte em aperto/pressão, irradiação (braço, mandíbula, costas), falta de ar, suor frio, desmaio/palidez. <u>Procure urgência (SAMU 192 / PS)</u>.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Sintomas do dia</h2>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <label><input type="checkbox" id="s_dor_peito"> Dor no peito</label>
+        <label><input type="checkbox" id="s_azia"> Azia/Refluxo</label>
+        <label><input type="checkbox" id="s_falta_ar"> Falta de ar</label>
+        <label><input type="checkbox" id="s_palpitacao"> Palpitação</label>
+        <label><input type="checkbox" id="s_tontura"> Tontura</label>
+        <label><input type="checkbox" id="s_nausea"> Náusea</label>
+        <label><input type="checkbox" id="s_dor_costas"> Dor nas costas</label>
+      </div>
+      <div class="row">
+        <label>Intensidade (0–10): <input type="number" id="intensidade" min="0" max="10" value="0"></label>
+        <label>Minutos de duração: <input type="number" id="duracao" min="0" max="180"></label>
+      </div>
+      <textarea id="observacoes" placeholder="Observações (o que estava fazendo, se melhorou em repouso, se piora após comer, etc.)"></textarea>
+    </section>
+
+    <section class="card">
+      <h2>Gráfico semanal (peso &amp; média da pressão)</h2>
+      <div class="chartBox"><canvas id="chart"></canvas></div>
+    </section>
+  </div>
+</div>
+
+<div class="actions">
+  <button id="saveBtn">Salvar</button>
+  <button id="exportBtn" class="ghost">Exportar CSV</button>
+  <button id="printBtn" class="ghost">Imprimir / PDF</button>
+  <button id="backupBtn" class="ghost">Backup</button>
+  <input type="file" id="restoreFile" accept=".json" style="flex:1;min-width:160px">
+  <button id="restoreBtn">Restaurar</button>
+</div>
+
+<audio id="beep">
+  <source src="data:audio/wav;base64,UklGRjgAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAACAAACAAABAAgAZGF0YQAAAAAAAP8A/wD/AAAA/wD/AP8A/wAAAP8A/wD/AAAA/wD/AP8A/wAAAA==" type="audio/wav">
+</audio>
+
+<script>
+// PWA: register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js');
+  });
+}
+
+// --- helpers ---
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function fmtDate(d){ const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function keyFor(date){ return `cardioDiary-${date}`; }
+function setStatus(txt){ const el=$('#saveStatus'); el.textContent=txt; }
+
+// --- init date
+const dateInput = $('#date'); dateInput.value = fmtDate(new Date()); dateInput.addEventListener('change', loadDay);
+
+// --- hydration ticks ---
+const aguaTicks = $('#aguaTicks');
+for(let i=1;i<=12;i++){ const lab=document.createElement('label'); lab.innerHTML=`<input type="checkbox" class="agua"> ${i*0.25} L`; aguaTicks.appendChild(lab); }
+function updateAgua(){ const ticks=$$('.agua'); const count=ticks.filter(t=>t.checked).length; const litros=(count*0.25).toFixed(2); $('#aguaLitros').textContent=litros; $('#aguaBar').style.width=Math.min((count/12)*100,100)+'%'; }
+aguaTicks.addEventListener('change', updateAgua);
+
+// --- BP classification ---
+function classifyBP(sis,dia){ if(!sis||!dia) return {label:'—',cls:''}; if(sis>=140||dia>=90) return {label:'Alta',cls:'bad'}; if((sis>=130&&sis<=139)||(dia>=85&&dia<=89)) return {label:'Elevada',cls:'warn'}; return {label:'OK',cls:'ok'}; }
+function updateBPRow(prefix){ const sis=Number($(`#${prefix}_sis`).value); const dia=Number($(`#${prefix}_dia`).value); const cell=$(`#${prefix}_status`); const {label,cls}=classifyBP(sis,dia); cell.textContent=label; cell.className=`status ${cls}`; dangerCheck(); }
+['bp_m','bp_t','bp_n'].forEach(p=>{ ['sis','dia','pul'].forEach(f=> $(`#${p}_${f}`).addEventListener('input', ()=>updateBPRow(p))); });
+
+// --- flags ---
+const beep = $('#beep');
+function dangerCheck(){
+  const dorPeito=$('#s_dor_peito')?.checked;
+  const faltaAr=$('#s_falta_ar')?.checked;
+  const palpit=$('#s_palpitacao')?.checked;
+  const intensidade=Number($('#intensidade')?.value||0);
+  const m=classifyBP(Number($('#bp_m_sis').value), Number($('#bp_m_dia').value));
+  const t=classifyBP(Number($('#bp_t_sis').value), Number($('#bp_t_dia').value));
+  const n=classifyBP(Number($('#bp_n_sis').value), Number($('#bp_n_dia').value));
+  const altaAgora=[m,t,n].some(x=>x.cls==='bad');
+  const show=(dorPeito&&intensidade>=5)||faltaAr||palpit||altaAgora;
+  const box=$('#flagBox'); const was=box?.style.display==='block';
+  if(box) box.style.display=show?'block':'none';
+  if(show && !was){ beep.currentTime=0; beep.play().catch(()=>{}); }
+}
+$$('input, textarea').forEach(el=> el.addEventListener('input', ()=>{ setStatus('Alterações não salvas'); dangerCheck(); }));
+
+// --- save/load ---
+function gather(){ return {
+  nome: $('#nome').value, peso: $('#peso').value,
+  omep_chk: $('#omep_chk').checked, omep_time: $('#omep_time').value,
+  escit_chk: $('#escit_chk').checked, escit_time: $('#escit_time').value,
+  agua: $$('.agua').map(a=>a.checked),
+  bp:{ m:{sis:$('#bp_m_sis').value,dia:$('#bp_m_dia').value,pul:$('#bp_m_pul').value},
+      t:{sis:$('#bp_t_sis').value,dia:$('#bp_t_dia').value,pul:$('#bp_t_pul').value},
+      n:{sis:$('#bp_n_sis').value,dia:$('#bp_n_dia').value,pul:$('#bp_n_pul').value} },
+  sintomas:{ dor_peito: $('#s_dor_peito').checked, azia: $('#s_azia').checked, falta_ar: $('#s_falta_ar').checked,
+    palpitacao: $('#s_palpitacao').checked, tontura: $('#s_tontura').checked, nausea: $('#s_nausea').checked,
+    dor_costas: $('#s_dor_costas').checked, intensidade: $('#intensidade').value, duracao: $('#duracao').value,
+    observacoes: $('#observacoes').value }
+}; }
+function populate(data){
+  if(!data) return;
+  $('#nome').value=data.nome||''; $('#peso').value=data.peso||'';
+  $('#omep_chk').checked=!!data.omep_chk; $('#omep_time').value=data.omep_time||'';
+  $('#escit_chk').checked=!!data.escit_chk; $('#escit_time').value=data.escit_time||'';
+  const agua=data.agua||[]; $$('.agua').forEach((a,i)=> a.checked=!!agua[i]);
+  ['m','t','n'].forEach(k=>{ $('#bp_'+k+'_sis').value=data.bp?.[k]?.sis||''; $('#bp_'+k+'_dia').value=data.bp?.[k]?.dia||''; $('#bp_'+k+'_pul').value=data.bp?.[k]?.pul||''; updateBPRow('bp_'+k); });
+  const s=data.sintomas||{}; $('#s_dor_peito').checked=!!s.dor_peito; $('#s_azia').checked=!!s.azia; $('#s_falta_ar').checked=!!s.falta_ar;
+  $('#s_palpitacao').checked=!!s.palpitacao; $('#s_tontura').checked=!!s.tontura; $('#s_nausea').checked=!!s.nausea; $('#s_dor_costas').checked=!!s.dor_costas;
+  $('#intensidade').value=s.intensidade||0; $('#duracao').value=s.duracao||''; $('#observacoes').value=s.observacoes||'';
+  updateAgua(); dangerCheck();
+}
+function saveDay(){ localStorage.setItem(keyFor(dateInput.value), JSON.stringify(gather())); setStatus('Salvo ✔'); drawChart(); }
+function loadDay(){ const raw=localStorage.getItem(keyFor(dateInput.value)); populate(raw? JSON.parse(raw): {}); setStatus(raw? 'Carregado' : 'Novo dia'); drawChart(); }
+$('#saveBtn').addEventListener('click', saveDay);
+
+// CSV export
+function toCSVRow(arr, sep=';'){ return arr.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(sep); }
+$('#exportBtn').addEventListener('click', ()=>{
+  const d=gather(); const dt=dateInput.value; const sep=';';
+  const rows=[];
+  rows.push(['Data','Nome','Peso(kg)','Omeprazol','Hora Omep','Escitalopram','Hora Escit','Litros Água','BP Manhã','BP Tarde','BP Noite','Pulso M/T/N','Sintomas','Intensidade','Duração (min)','Observações'].join(sep));
+  const litros=$$('.agua').filter(a=>a.checked).length*0.25;
+  const bp_m=`${d.bp.m.sis}/${d.bp.m.dia}`, bp_t=`${d.bp.t.sis}/${d.bp.t.dia}`, bp_n=`${d.bp.n.sis}/${d.bp.n.dia}`;
+  const pul=`${d.bp.m.pul}/${d.bp.t.pul}/${d.bp.n.pul}`;
+  const sintomas=Object.entries(d.sintomas).filter(([k,v])=>['intensidade','duracao','observacoes'].indexOf(k)===-1 && v).map(([k])=>k).join('|');
+  rows.push(toCSVRow([dt,d.nome,d.peso,d.omep_chk?'sim':'não',d.omep_time,d.escit_chk?'sim':'não',d.escit_time,litros.toFixed(2),bp_m,bp_t,bp_n,pul,sintomas,d.sintomas.intensidade,d.sintomas.duracao,d.sintomas.observacoes], sep));
+  const csv='\ufeff'+rows.join('\r\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`diario-cardio-${dt}.csv`; a.click(); URL.revokeObjectURL(url);
+});
+
+// print
+$('#printBtn').addEventListener('click', ()=>window.print());
+
+// backup/restore
+$('#backupBtn').addEventListener('click', ()=>{
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith('cardioDiary-')).sort();
+  const data={}; keys.forEach(k=> data[k]=JSON.parse(localStorage.getItem(k)||'{}'));
+  const blob=new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='backup-diario-cardio.json'; a.click(); URL.revokeObjectURL(url);
+});
+$('#restoreBtn').addEventListener('click', ()=>{
+  const f=$('#restoreFile').files[0]; if(!f){ alert('Selecione um arquivo JSON de backup.'); return; }
+  const reader=new FileReader(); reader.onload=e=>{ try{ const obj=JSON.parse(e.target.result);
+    Object.entries(obj).forEach(([k,v])=>{ if(k.startsWith('cardioDiary-')) localStorage.setItem(k, JSON.stringify(v)); });
+    alert('Backup restaurado!'); drawChart();
+  }catch(err){ alert('Arquivo inválido.'); } }; reader.readAsText(f);
+});
+
+// chart
+const canvas=document.querySelector('#chart'); const ctx=canvas.getContext('2d');
+function getAllDays(){ const keys=Object.keys(localStorage).filter(k=>k.startsWith('cardioDiary-')); const data=keys.map(k=>({date:k.replace('cardioDiary-',''), obj: JSON.parse(localStorage.getItem(k)||'{}')})).filter(x=>x.obj); data.sort((a,b)=>a.date.localeCompare(b.date)); return data; }
+function avgPressure(day){ const b=day.obj?.bp||{}; const vals=[]; ['m','t','n'].forEach(k=>{ const sis=Number(b[k]?.sis||0); const dia=Number(b[k]?.dia||0); if(sis>0&&dia>0) vals.push([sis,dia]); }); if(!vals.length) return null; const s=vals.reduce((acc,[a,b])=>[acc[0]+a,acc[1]+b],[0,0]); return [Math.round(s[0]/vals.length), Math.round(s[1]/vals.length)]; }
+function drawChart(){ const days=getAllDays().slice(-7); const w=canvas.clientWidth||320, h=canvas.clientHeight||220; canvas.width=w*devicePixelRatio; canvas.height=h*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.clearRect(0,0,w,h); ctx.strokeStyle='#ddd'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(40,15); ctx.lineTo(40,h-30); ctx.lineTo(w-10,h-30); ctx.stroke(); ctx.fillStyle='#444'; ctx.font='12px system-ui'; ctx.fillText('Dias', w-50, h-10); ctx.save(); ctx.translate(12,h/2); ctx.rotate(-Math.PI/2); ctx.fillText('Peso (kg) / Pressão (mmHg)', 0,0); ctx.restore(); if(!days.length){ ctx.fillText('Sem dados suficientes — salve alguns dias.', 60, h/2); return; } const labels=days.map(d=> d.date.slice(5)); const pesos=days.map(d=> Number(d.obj?.peso||0) || NaN); const press=days.map(d=> avgPressure(d)); const minPeso=Math.min(...pesos.filter(x=>!isNaN(x))); const maxPeso=Math.max(...pesos.filter(x=>!isNaN(x))); const pMin=(isFinite(minPeso)? Math.floor(minPeso-1): 50); const pMax=(isFinite(maxPeso)? Math.ceil(maxPeso+1): 120); const yP=v=>{ const a=pMax-pMin||1; return (h-30) - ((v - pMin)/a) * (h-45); }; const sMin=60, sMax=180; const yS=v=> (h-30) - ((v - sMin)/(sMax - sMin)) * (h-45); const x=i=> 40 + i * ((w-60)/Math.max(1,labels.length-1)); labels.forEach((lab,i)=>{ ctx.fillText(lab, x(i)-12, h-12); }); ctx.strokeStyle='#0d6efd'; ctx.lineWidth=2; ctx.beginPath(); let started=false; pesos.forEach((v,i)=>{ if(isNaN(v)) return; const xi=x(i), yi=yP(v); if(!started){ctx.moveTo(xi,yi);started=true;}else{ctx.lineTo(xi,yi);} ctx.fillRect(xi-2, yi-2, 4, 4); }); ctx.stroke(); ctx.fillText('Peso (kg)', 50, 20); ctx.strokeStyle='#22a35a'; ctx.lineWidth=2; ctx.beginPath(); started=false; press.forEach((p,i)=>{ if(!p) return; const xi=x(i), yi=yS(p[0]); if(!started){ctx.moveTo(xi,yi);started=true;}else{ctx.lineTo(xi,yi);} ctx.fillRect(xi-2, yi-2, 4, 4); }); ctx.stroke(); ctx.fillText('Sistólica (mmHg)', 130, 20); ctx.strokeStyle='#c62828'; ctx.lineWidth=2; ctx.beginPath(); started=false; press.forEach((p,i)=>{ if(!p) return; const xi=x(i), yi=yS(p[1]); if(!started){ctx.moveTo(xi,yi);started=true;}else{ctx.lineTo(xi,yi);} ctx.fillRect(xi-2, yi-2, 4, 4); }); ctx.stroke(); ctx.fillText('Diastólica (mmHg)', 250, 20); }
+window.addEventListener('load', drawChart); window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>
